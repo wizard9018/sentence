@@ -1,0 +1,987 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sentence Memory Trainer (60 x 8-Step)</title>
+<style>
+  :root { --bg:#0b1020; --card:#121a33; --ink:#e7ecff; --muted:#aab5e6; --accent:#7aa2ff; --ok:#35d07f; --warn:#ffb86b; --bad:#ff6b6b; }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji","Segoe UI Emoji"; background:var(--bg); color:var(--ink);}
+  header{padding:16px 20px; border-bottom:1px solid #1f2a55; display:flex; gap:16px; align-items:center; flex-wrap:wrap}
+  header h1{font-size:18px; margin:0; letter-spacing:.3px; color:#d9e3ff}
+  .wrap{max-width:980px; margin:24px auto; padding:0 16px}
+  .card{background:var(--card); border:1px solid #1f2a55; border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  label{display:block; font-size:14px; color:var(--muted); margin-bottom:6px}
+  select, button, textarea, input[type="text"]{
+    width:100%; border-radius:12px; border:1px solid #253364; background:#0e1630; color:var(--ink);
+    padding:10px 12px; font-size:15px; outline:none;
+  }
+  button{cursor:pointer; background:linear-gradient(180deg, #2a3c7a, #1e2d5e); border-color:#314489}
+  button:hover{filter:brightness(1.05)}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+  .muted{color:var(--muted)}
+  .accent{color:var(--accent)}
+  .ok{color:var(--ok)}
+  .warn{color:var(--warn)}
+  .bad{color:var(--bad)}
+  .big{font-size:18px; line-height:1.5}
+  .step-pill{display:inline-block; padding:4px 10px; border-radius:9999px; background:#0d1b3f; border:1px solid #243a86; font-size:12px; color:#b8c5ff}
+  .toolbar{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+  .toolbar .grow{flex:1}
+  .stats{display:flex; gap:20px; flex-wrap:wrap; margin-top:8px}
+  .stat{background:#0f1733; border:1px solid #21316b; padding:10px 12px; border-radius:12px; min-width:160px}
+  .center{display:flex; align-items:center; justify-content:center}
+  .space{height:10px}
+  .hidden{display:none}
+  footer{padding:16px; text-align:center; color:#8ea0e6; font-size:12px}
+  .small{font-size:12px}
+  .target-box{background:#0a1430; border:1px dashed #2a3c7a; border-radius:12px; padding:12px}
+  .result-box{background:#0c182f; border:1px solid #20305f; border-radius:12px; padding:12px}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+
+#targetText {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+}
+
+.uncopiable{
+  -webkit-user-select:none;
+  -moz-user-select:none;
+  -ms-user-select:none;
+  user-select:none;
+}
+.uncopiable::selection{background:transparent}
+    .compare-big{font-size:20px; line-height:1.65}
+.result-box .small{font-size:13px}
+        
+/* prevent copy */
+.no-copy {
+  user-select: none;
+}
+
+/* global prevent copy */
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+textarea, input, button {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+</style>
+</head>
+<body>
+  <header>
+    <h1>🧠 Sentence Memory Trainer — 60 Sentences × 8 Steps</h1>
+    <div class="muted small">Select a sentence, memorize each step, and type what you recall. Advance only with ≥ 80% similarity.</div>
+  </header>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="sentenceSelect">Choose sentence (1–60)</label>
+          <select id="sentenceSelect"></select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button id="startBtn">Start Session</button>
+        </div>
+      </div>
+      <div class="space"></div>
+      <div class="stats">
+        <div class="stat"><div class="muted small">Current Step</div><div class="big"><span class="step-pill" id="stepIndicator">—</span></div></div>
+        <div class="stat"><div class="muted small">Elapsed Time</div><div class="big" id="timeDisplay">00:00</div></div>
+        <div class="stat"><div class="muted small">Avg Similarity</div><div class="big" id="avgDisplay">—</div></div>
+      </div>
+    </div>
+
+    <div class="space"></div>
+
+    <div class="card">
+      <div id="trainerPane" class="hidden">
+        <div class="muted small">Memorize this (Step <span id="stepNum">1</span> of 8). When you click "I'm ready — test me", the text will be hidden:</div>
+        <div class="target-box mono uncopiable" id="targetText" style="white-space:pre-wrap"></div>
+        <div class="space"></div>
+        <div class="toolbar">
+          <button id="readyBtn">I'm ready — test me</button>
+          <div class="grow"></div>
+          
+          <button id="resetBtn" title="Restart sentence from Step 1">Restart</button>
+        </div>
+        <div id="inputPane" class="hidden">
+          <div class="space"></div>
+          <label for="userInput">Type what you recall for this step</label>
+          <textarea id="userInput" rows="4" placeholder="Type from memory..." class="mono"></textarea>
+          <div class="space"></div>
+          <button id="submitBtn">Check similarity</button>
+          <div class="space"></div>
+          <div id="resultPane" class="result-box hidden">
+  <button id="proceedBtn" class="">Proceed to Next Step</button>
+  <div class="space"></div>
+            <div class="grid-2 mono small">
+              <div><b>Your input</b><br><span id="showInput" class="compare-big"></span></div>
+              <div><b>Target step</b><br><span id="showTarget" class="compare-big"></span></div>
+            </div>
+            <div class="space"></div>
+            <div class="toolbar"><button id="retryBtn">Retry</button></div>
+            <div class="space"></div>
+            <div>Similarity: <b id="simScore" class="accent"></b> — <span id="gateMsg"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="finishPane" class="hidden">
+        <h3>🎉 Session complete</h3>
+        <p>Total time: <b id="finalTime"></b></p>
+        <p>Average similarity across steps: <b id="finalAvg"></b></p>
+        <button id="againBtn">Choose another sentence</button>
+      </div>
+    </div>
+
+    <footer>Tip: Aim for concise recall. You can press <span class="mono">Peek</span> to re-view the step without penalty.</footer>
+  </div>
+
+<script>
+const SENTENCES = {
+  1: [
+    "Astronomers are confident B will explode.",
+    "Astronomers are confident B will explode in a supernova.",
+    "Astronomers are confident B will consume helium and explode in a supernova.",
+    "Astronomers are confident B will consume helium in its core and explode in a supernova.",
+    "Astronomers are confident the star B will consume helium in its core and eventually explode in a supernova.",
+    "Astronomers are confident the star B will consume helium in its core and eventually explode in a supernova, and S.E-B.N studied it.",
+    "Astronomers are confident the star B will consume helium in its core and eventually explode in a supernova, and S.E-B.N with colleagues studied whether acoustic waves in the star could be used to reveal its internal state.",
+    "Astronomers are confident the star B will consume helium in its core and eventually explode in a supernova, and S.E-B.N with colleagues recently studied whether acoustic waves in the star could be used to determine its internal stellar states but concluded the method could not sufficiently reveal B’s characteristics to fix its evolutionary state."
+  ],
+  2: [
+    "A general measure may not reflect policy uncertainty.",
+    "A general measure may not reflect uncertainty in specific policy areas.",
+    "A general measure may not reflect uncertainty in specific policy areas like trade policy.",
+    "In the UK, general policy uncertainty was lower than trade policy uncertainty in 2005.",
+    "In the UK, general policy uncertainty was lower than trade policy uncertainty in 2005 but higher in 2010.",
+    "In the UK, general policy uncertainty was lower than trade policy uncertainty in 2005 but higher in 2010, showing general measures may not reflect specific areas.",
+    "In the UK, general policy uncertainty was lower than trade policy uncertainty in 2005 but higher in 2010, supporting the idea that a general measure may not fully reflect uncertainty in specific policy areas.",
+    "In the UK, general policy uncertainty was lower than trade policy uncertainty in 2005 but higher in 2010, supporting her finding that a general measure may not fully reflect uncertainty in specific policy areas — one revelation of her work."
+  ],
+  3: [
+    "The tree gives the fungus carbon.",
+    "The tree gives the fungus carbon, and the fungus helps the tree.",
+    "The tree gives the fungus carbon, and the fungus helps the tree absorb nitrogen.",
+    "The tree gives carbon, a nutrient for both species, and the fungus helps absorb nitrogen.",
+    "The tree gives carbon, a nutrient for both species, and the fungus helps absorb nitrogen from the soil.",
+    "The tree gives carbon, a nutrient for both species, and the fungus helps absorb nitrogen from the soil, benefiting the tree.",
+    "The tree gives carbon, a nutrient for both species, and the fungus helps absorb nitrogen from the soil, benefiting both organisms.",
+    "In this symbiotic exchange, the tree provides the fungus with carbon, a nutrient necessary for both species, and the fungus reciprocates by enhancing the tree’s ability to absorb nitrogen, another key nutrient, from the soil."
+  ],
+  4: [
+    "Male birds have saturated feather colors.",
+    "Male birds often have more saturated feather colors than females.",
+    "Male birds often have more saturated feather colors than females because of carotenoids.",
+    "Male birds often have more saturated feather colors than females because carotenoids also improve health.",
+    "Male birds often have more saturated feather colors than females because carotenoids improve health, and bright colors signal good health.",
+    "Male birds often have more saturated feather colors than females because carotenoids improve health, and bright colors signal good health to mates.",
+    "Male birds often have more saturated feather colors than females because carotenoids improve health, and bright colors act as an honest signal of a bird’s fitness to mates.",
+    "Coloration tends to be especially saturated in male birds’ feathers, and because carotenoids also confer health benefits, the deeply saturated colors generally serve to communicate what is known as an honest signal of a bird’s overall fitness to potential mates."
+  ],
+  5: [
+    "E.O says humans may live elsewhere.",
+    "E.O says humans may live beyond Earth.",
+    "E.O says humans may need to live beyond Earth.",
+    "E.O says humans may need to live beyond Earth but doesn’t know when.",
+    "E.O says humans may need to live beyond Earth someday, though she doesn’t know when.",
+    "E.O says humans may need to live beyond Earth someday, though she doesn’t know when, and may need other environments.",
+    "E.O says humans may need to live beyond Earth someday, though she doesn’t know when, and may need environments other than Earth’s.",
+    "Former astronaut E.O says that although she doesn’t have a definite idea of when it might happen, she speculates that humans will someday need to be able to live in other environments than those found on Earth."
+  ],
+  6: [
+    "Human bipedalism began in an ancestor.",
+    "Human bipedalism began in a mostly ground-based ancestor.",
+    "Human bipedalism began in a mostly ground-based ancestor that walked on four legs.",
+    "Human bipedalism began in a mostly ground-based ancestor that walked on four legs using knuckles.",
+    "Human bipedalism began in a mostly ground-based ancestor that walked on four legs using knuckles, like chimps and gorillas.",
+    "Human bipedalism began in a mostly ground-based ancestor that walked on four legs using knuckles, like chimps and gorillas, and later evolved to walk on two legs.",
+    "Human bipedalism began in a mostly ground-based ancestor that walked on four legs using knuckles, like chimps and gorillas, and later evolved to move upright on two legs.",
+    "One theory behind human bipedalism speculates that it originated in a mostly ground-based ancestor that practiced four-legged “knuckle-walking,” like chimpanzees and gorillas do today, and eventually evolved into moving upright on two legs."
+  ],
+  7: [
+    "Monkeys were given problems.",
+    "Monkeys were given problems requiring different dexterity levels.",
+    "Monkeys were given easy problems and hard problems.",
+    "Monkeys were given easy problems, such as sliding a panel for food, and hard problems.",
+    "Monkeys were given easy problems, such as sliding a panel for food, and hard problems, such as unscrewing a bottle.",
+    "Monkeys were given easy problems, such as sliding a panel for food, and hard problems, such as unscrewing a bottle and inserting a straw.",
+    "Monkeys were given easy problems, such as sliding a panel for food, and hard problems, such as unscrewing a bottle and inserting a straw, and all were judged by the same criteria.",
+    "The cognitive abilities of monkeys given problems requiring little dexterity, such as sliding a panel to retrieve food, were judged by the same criteria as were those of monkeys given physically demanding problems, such as unscrewing a bottle and inserting a straw."
+  ],
+  8: [
+    "E.W proposed a crystal of electrons.",
+    "E.W proposed a crystal of electrons with a honeycomb structure.",
+    "E.W proposed a crystal of electrons with a honeycomb structure called the Wigner crystal.",
+    "E.W proposed a crystal of electrons with a honeycomb structure called the Wigner crystal, but it remained unproven.",
+    "E.W proposed a crystal of electrons with a honeycomb structure called the Wigner crystal, but it remained unproven until F.W imaged one.",
+    "E.W proposed a crystal of electrons with a honeycomb structure called the Wigner crystal, but it remained unproven until F.W and colleagues imaged one in 2021.",
+    "E.W proposed a crystal of electrons with a honeycomb structure called the Wigner crystal, but it remained unproven until F.W and colleagues captured an image in 2021.",
+    "In 1934 physicist E.W posited the existence of a crystal consisting entirely of electrons in a honeycomb-like structure. The so-called Wigner crystal remained largely conjecture, however, until F.W and colleagues announced in 2021 that they had captured an image of one."
+  ],
+  9: [
+    "Four species were known.",
+    "Four species of mixopterid eurypterids were known.",
+    "Four species of mixopterid eurypterids, large aquatic arthropods, were known.",
+    "Four species of mixopterid eurypterids, large aquatic arthropods related to arachnids, were known.",
+    "Four species of mixopterid eurypterids, large aquatic arthropods related to arachnids and horseshoe crabs, were known.",
+    "Four species of mixopterid eurypterids, large aquatic arthropods related to arachnids and horseshoe crabs, lived on Laurussia.",
+    "Four species of mixopterid eurypterids, large aquatic arthropods related to arachnids and horseshoe crabs, lived on the paleocontinent Laurussia.",
+    "For many years, the only existing fossil evidence of mixopterid eurypterids—an extinct family of large aquatic arthropods known as sea scorpions and related to modern arachnids and horseshoe crabs—came from four species living on the paleocontinent of Laurussia."
+  ],
+  10: [
+    "Dinosaur bite force is hard to determine.",
+    "Dinosaur bite force is hard to determine because of methodology.",
+    "Dinosaur bite force is hard to determine because methodology affects the estimate.",
+    "Dinosaur bite force is hard to determine because methodology can strongly affect the estimate.",
+    "Dinosaur bite force is hard to determine because methodology can strongly affect the estimate, as P.B and E.R suggest.",
+    "Dinosaur bite force is hard to determine because methodology can strongly affect the estimate, as P.B and E.R suggest when studying extinct animals.",
+    "Dinosaur bite force is hard to determine because methodology can strongly affect the estimate, as P.B and E.R suggest when studying extinct animals’ bite forces.",
+    "Determining the bite force of extinct animals can be difficult, however, and paleontologists P.B and E.R have suggested that an estimate of dinosaur bite force may be significantly influenced by the methodology used in generating that estimate."
+  ],
+  11: [
+    "Vancouver Island meadows have more genetic diversity.",
+    "Vancouver Island meadows have more genetic diversity than others.",
+    "Vancouver Island meadows have more genetic diversity than others, Foster found.",
+    "Vancouver Island meadows have more genetic diversity than others, which Foster linked to eelgrass root damage.",
+    "Vancouver Island meadows have more genetic diversity than others, which Foster linked to eelgrass root damage increasing sexual reproduction.",
+    "Vancouver Island meadows have more genetic diversity than others, which Foster linked to eelgrass root damage increasing sexual reproduction and boosting diversity.",
+    "Vancouver Island meadows have more genetic diversity than others, which Foster linked to eelgrass root damage increasing sexual reproduction, boosting diversity, and improving meadow health.",
+    "Finding that the Vancouver Island meadows have a more diverse gene pool than the others do, Foster hypothesized that damage to eelgrass roots increases the plant’s rate of sexual reproduction; this, in turn, boosts genetic diversity, which benefits the meadow’s health overall."
+  ],
+  12: [
+    "The early Moon had a softer surface.",
+    "The early Moon had a softer surface when forming.",
+    "The early Moon had a softer surface when forming, so impacts left smaller marks.",
+    "The early Moon had a softer surface when forming, so asteroid impacts left smaller marks.",
+    "The early Moon had a softer surface when forming, so asteroid or meteoroid impacts left smaller marks.",
+    "The early Moon had a softer surface when forming, so asteroid or meteoroid impacts left smaller marks and less evidence.",
+    "The early Moon had a softer surface when forming, so asteroid or meteoroid impacts left smaller marks and less evidence, meaning early impacts may not remain.",
+    "When the Moon was still forming, its surface was softer, and asteroid or meteoroid impacts would have left less of an impression; thus, evidence of early impacts may no longer be present."
+  ],
+  13: [
+    "Mars has a thin atmosphere.",
+    "Mars has a thin atmosphere compared to Earth.",
+    "Mars has a thin atmosphere, only 1% as dense as Earth’s.",
+    "Mars has a thin atmosphere, only 1% as dense as Earth’s, giving less blade resistance.",
+    "Mars has a thin atmosphere, only 1% as dense as Earth’s, giving less blade resistance for helicopters.",
+    "Mars has a thin atmosphere, only 1% as dense as Earth’s, giving less blade resistance so helicopters can’t fly.",
+    "Mars has a thin atmosphere, only 1% as dense as Earth’s, giving less blade resistance so standard helicopters can’t stay aloft.",
+    "Because Mars’s atmosphere is only one percent as dense as Earth’s, the air of Mars would not provide enough resistance to the rotating blades of a standard helicopter for the aircraft to stay aloft."
+  ],
+  14: [
+    "Sauropods could grow very large.",
+    "Sauropods could grow over 100 feet long.",
+    "Sauropods could grow over 100 feet long and weigh up to 80 tons.",
+    "Sauropods could grow over 100 feet long and weigh up to 80 tons, and they were herbivorous dinosaurs.",
+    "Sauropods could grow over 100 feet long and weigh up to 80 tons, and some researchers studied the cause of this size.",
+    "Sauropods could grow over 100 feet long and weigh up to 80 tons, and some researchers linked their size to increased plant production.",
+    "Sauropods could grow over 100 feet long and weigh up to 80 tons, and some researchers linked their size to increased plant production from high CO₂ levels in the Mesozoic era.",
+    "Herbivorous sauropod dinosaurs could grow more than 100 feet long and weigh up to 80 tons, and some researchers have attributed the evolution of sauropods to such massive sizes to increased plant production resulting from high levels of atmospheric carbon dioxide during the Mesozoic era."
+  ],
+  15: [
+    "Stars and planets form from the same material.",
+    "Stars and planets form from the same gas and dust.",
+    "Stars and planets form from the same gas and dust, such as the Sun and our system.",
+    "Stars and planets form from the same gas and dust, and some astronomers think they share composition.",
+    "Stars and planets form from the same gas and dust, and some astronomers think planets contain equal or smaller amounts of the star’s materials.",
+    "Stars and planets form from the same gas and dust, and some astronomers think planets like those in our system contain equal or smaller amounts of the star’s materials.",
+    "Stars and planets form from the same gas and dust, and some astronomers think planets like those in our system contain equal or smaller amounts of the star’s materials, as with the Sun and its planets.",
+    "Given that stars and planets initially form from the same gas and dust in space, some astronomers have posited that host stars (such as the Sun) and their planets (such as those in our solar system) are composed of the same materials, with the planets containing equal or smaller quantities of the materials that make up the host star."
+  ],
+  16: [
+    "They counted plants in vegetation patches.",
+    "They counted plants in vegetation patches and on bare ground.",
+    "They counted plants in vegetation patches and on bare ground, comparing numbers.",
+    "They counted plants in vegetation patches and on bare ground, comparing to expected numbers.",
+    "They counted plants in vegetation patches and on bare ground, comparing to expected numbers if random.",
+    "They counted plants in vegetation patches and on bare ground, comparing to expected numbers if randomly spread.",
+    "They counted plants in vegetation patches and on bare ground, comparing to expected numbers if plants were randomly spread.",
+    "They counted the number of juvenile plants of five species growing in patches of vegetation and the number growing alone on bare ground and compared those numbers to what would be expected if the plants were randomly distributed."
+  ],
+  17: [
+    "Forested streams have more species.",
+    "Forested streams have more species than others.",
+    "Forested streams have more species, Giam found.",
+    "Forested streams have more species, Giam found, due to leaf litter.",
+    "Forested streams have more species, Giam found, due to leaf litter sheltering fish.",
+    "Forested streams have more species, Giam found, due to leaf litter sheltering fish and giving food.",
+    "Forested streams have more species, Giam found, due to leaf litter sheltering fish and giving food resources.",
+    "Giam and colleagues found that species richness was significantly higher in forested streams, a finding the researchers attribute to the role leaf litter plays in sheltering fish from predators and providing food resources."
+  ],
+  18: [
+    "Historical diversity affects communities.",
+    "Historical diversity affects community diversity.",
+    "Historical diversity affects how diverse communities become.",
+    "Historical diversity affects how diverse communities become, theorists say.",
+    "Historical diversity affects how diverse communities become, depending on earlier species numbers.",
+    "Historical diversity affects how diverse communities become, depending on earlier species numbers in habitats.",
+    "Historical diversity affects how diverse communities become, with earlier species numbers strongly affecting diversity.",
+    "Some theorists have argued that historical diversity is a major driver of how diverse an ecological community eventually becomes: differences in community diversity across otherwise similar habitats, in this view, are strongly affected by the number of species living in those habitats at earlier times."
+  ],
+  19: [
+    "These threads are strong and elastic.",
+    "These threads are strong and elastic, A.N found.",
+    "These threads are strong and elastic, and A.N is recreating them in a lab.",
+    "These threads are strong and elastic, and A.N is recreating them as an eco-friendly fiber.",
+    "These threads are strong and elastic, and A.N is recreating them as an eco-friendly fiber to replace petroleum fibers.",
+    "These threads are strong and elastic, and A.N is recreating them as an eco-friendly fiber to replace petroleum fibers in fabrics.",
+    "These threads are strong and elastic, and A.N is recreating them as an eco-friendly fiber to replace petroleum fibers often used in fabrics.",
+    "Because these threads are unusually strong and elastic, scientist A.N and her colleagues have been trying to recreate them in a lab as an eco-friendly alternative to petroleum-based fibers that are often used in fabrics."
+  ],
+  20: [
+    "C.L and F.S studied stream sediment.",
+    "C.L and F.S studied Alpine stream sediment.",
+    "C.L and F.S studied Alpine stream sediment from many sites.",
+    "C.L and F.S studied Alpine stream sediment from many sites and compared grain size.",
+    "C.L and F.S studied Alpine stream sediment from many sites and compared grain size with distance.",
+    "C.L and F.S studied Alpine stream sediment from many sites and found grain size not linked to distance.",
+    "C.L and F.S studied Alpine stream sediment from many sites and found grain size not linked to distance because influx was diffuse.",
+    "In a study of sediment sampled at more than a dozen sites in Alpine streams, however, geologists C.L and F.S found that cross-site variations in grain size were not associated with differences in downstream distance, though they did not conclude that downstream distance is irrelevant to grain size. Rather, they concluded that sediment influx in these streams may have been sufficiently spatially diffuse to prevent the typical sorting effect from being observed."
+  ],
+  // For sentences 21–60, we include evenly built general-science sentences created in the session.
+  21: [
+    "Deep sleep leaves animals vulnerable.",
+    "Deep sleep leaves animals vulnerable for hours.",
+    "Deep sleep leaves animals vulnerable for hours at a time.",
+    "Deep sleep leaves animals vulnerable for hours at a time, scientists say.",
+    "Deep sleep leaves animals vulnerable for hours at a time, and benefits may seem small.",
+    "Deep sleep leaves animals vulnerable for hours at a time, and benefits may seem small compared with risk.",
+    "Deep sleep leaves animals vulnerable for hours at a time, and benefits may seem small compared with risk, raising questions about its spread.",
+    "Some scientists claim that, from an evolutionary standpoint, deep sleep for hours at a time leaves an animal so vulnerable that the known benefits of sleeping seem insufficient to explain why it became widespread in the animal kingdom."
+  ],
+  22: [
+    "C.Y wants a new space telescope.",
+    "C.Y wants a new space telescope for solar-system studies.",
+    "C.Y wants a new space telescope for solar-system studies to observe bodies.",
+    "C.Y wants a new space telescope for solar-system studies to survey bodies and observe them over time.",
+    "C.Y wants a new space telescope for solar-system studies to survey minor bodies and observe them over time.",
+    "C.Y wants a new space telescope for solar-system studies to survey minor bodies and make long-term UV observations.",
+    "C.Y wants a new space telescope for solar-system studies to survey minor bodies and make long-term UV observations to track their changes.",
+    "NASA researcher C.Y and colleagues assert that a new space telescope dedicated exclusively to solar-system observations would permit an extensive survey of minor solar-system bodies and long-term UV observation to discern how these bodies change over time."
+  ],
+  23: [
+    "Mosses can struggle in deserts.",
+    "Mosses can struggle in deserts needing sunlight.",
+    "Mosses can struggle in deserts needing sunlight but avoiding too much.",
+    "Mosses can struggle in deserts needing sunlight for photosynthesis.",
+    "Mosses can struggle in deserts needing sunlight for photosynthesis but avoiding drying out.",
+    "Mosses can struggle in deserts needing sunlight for photosynthesis but avoiding drying from excess heat.",
+    "Mosses can struggle in deserts needing sunlight for photosynthesis but avoiding drying from too much sun exposure.",
+    "Mosses can struggle in harsh desert conditions because these plants require enough sunlight for photosynthesis but not so much that they risk drying out."
+  ],
+  24: [
+    "T.P shows ambivalence toward nature.",
+    "T.P shows ambivalence toward nature in *Nature Poem*.",
+    "T.P shows ambivalence toward nature in *Nature Poem*, honoring tradition.",
+    "T.P shows ambivalence toward nature in *Nature Poem*, honoring tribal beliefs.",
+    "T.P shows ambivalence toward nature in *Nature Poem*, honoring tribal beliefs but disliking wilderness.",
+    "T.P shows ambivalence toward nature in *Nature Poem*, honoring tribal beliefs but disliking wilderness himself.",
+    "T.P shows ambivalence toward nature in *Nature Poem*, honoring tribal beliefs but disliking wilderness himself and expressing this openly.",
+    "In *Nature Poem* (2017), Kumeyaay poet T.P portrays his ambivalence toward the natural world by honoring the centrality of nature within his tribe's traditional beliefs while simultaneously expressing his distaste for being in wilderness settings himself."
+  ],
+  25: [
+    "A.P argued about folklore origins.",
+    "A.P argued Mexican American folklore origins.",
+    "A.P argued folklore is not mainly Spanish.",
+    "A.P argued folklore is mainly from cultural interactions.",
+    "A.P argued folklore is mainly from interactions in Mexico and the US.",
+    "A.P argued folklore is mainly from ongoing interactions in Mexico and the US.",
+    "A.P argued folklore is mainly from ongoing interactions in Mexico and the US, despite some Spanish influence.",
+    "Scholars such as A.P, by contrast, argued that while some Spanish influence is undeniable, Mexican American folklore is mainly the product of the ongoing interactions of various cultures in Mexico and the United States."
+  ],
+  26: [
+    "Digital tech changed book creation.",
+    "Digital tech changed book creation in recent decades.",
+    "Digital tech changed book creation, lowering costs.",
+    "Digital tech changed book creation, lowering costs after writing.",
+    "Digital tech changed book creation, lowering costs after writing and editing.",
+    "Digital tech changed book creation, lowering costs after writing, editing, and design.",
+    "Digital tech changed book creation, lowering costs after writing, editing, and design, mostly in manufacturing and distribution.",
+    "The increased integration of digital technologies throughout the process of book creation in the late 20th and early 21st centuries lowered the costs of book production, but those decreased costs have been most significant in the manufacturing and distribution process, which occurs after the authoring, editing, and design of the book are complete."
+  ],
+  27: [
+    "Artifacts may date to the 13th century.",
+    "Artifacts in Ghana may date to the 13th century.",
+    "Artifacts in Kualo Kataa may date to the 13th century.",
+    "Artifacts in Kualo Kataa may date to the 13th century, supporting early founding.",
+    "Artifacts in Kualo Kataa may date to the 13th century, supporting founding before or around then.",
+    "Artifacts in Kualo Kataa may date to the 13th century, which would support founding before or around then.",
+    "Artifacts in Kualo Kataa may date to the 13th century, lending credence to founding before or around that time.",
+    "If some artifacts recovered from excavations of the settlement of Kualo Kataa, in modern Ghana, date from the thirteenth century CE, that may lend credence to claims that the settlement was founded before or around that time."
+  ],
+  28: [
+    "Languages vary in speaking speed.",
+    "Languages vary in speaking speed but not information.",
+    "Languages vary in speed but not in information conveyed.",
+    "Languages vary in speed but convey similar amounts of information.",
+    "Languages vary in speed but convey similar amounts of information effectively.",
+    "Languages vary in speed but convey similar amounts of information effectively, researchers found.",
+    "Languages vary in speed but convey similar amounts of information effectively, despite speed differences.",
+    "They found that, although languages vary widely in the speed at which they are spoken, the amount of information languages can effectively convey tends to vary much less."
+  ],
+  29: [
+    "Military service may affect careers.",
+    "Military service may affect government careers.",
+    "Military service may affect civilian government careers.",
+    "Military service may affect civilian government careers through skills learned.",
+    "Military service may affect civilian government careers through organizational skills learned.",
+    "Military service may affect civilian government careers through organizational structures learned.",
+    "Military service may affect civilian government careers through organizational structures also in bureaucracy.",
+    "One possible explanation for this disproportionate representation is that military service familiarizes people with certain organizational structures that are also reflected in the civilian government bureaucracy."
+  ],
+  30: [
+    "Many comedies end in marriage.",
+    "Many comedies end in marriage and gender roles.",
+    "Many comedies end in marriage with gender roles restored.",
+    "Many comedies end in marriage with gender roles restored after defiance.",
+    "Many comedies end in marriage with gender roles restored after defiance, but not all.",
+    "Many comedies end in marriage with gender roles restored after defiance, but some differ.",
+    "Many comedies end in marriage with gender roles restored after defiance, but notable exceptions exist.",
+    "Most of the comedies end in marriage, with characters returning to their socially dictated gender roles after previously defying them, but there are some notable exceptions."
+  ],
+  // Sentences 31–60 were supplied/generic; continue those even-build versions:
+  31: [
+    "Crab shells have a strong structure.",
+    "Crab shells have a strong structure for protection.",
+    "Crab shells have a strong structure for protection against predators.",
+    "Crab shells have a strong layered structure for protection against predators.",
+    "Crab shells have a strong layered structure that resists cracking.",
+    "Crab shells have a strong layered structure that resists cracking by spreading force.",
+    "Crab shells have a strong layered structure that resists cracking by spreading force, helping survival.",
+    "Researchers have found that crab shells are built in a layered structure that helps prevent cracking by distributing the force of a blow, which can be critical for the crab’s survival."
+  ],
+  32: [
+    "Bacteria help produce oxygen.",
+    "Ocean bacteria help produce oxygen.",
+    "Ocean bacteria help produce oxygen for marine life.",
+    "Ocean bacteria help produce oxygen for marine life through photosynthesis.",
+    "Ocean bacteria help produce oxygen for marine life through photosynthesis and other processes.",
+    "Ocean bacteria help produce oxygen for marine life through photosynthesis and other processes in surface waters.",
+    "Ocean bacteria help produce oxygen for marine life through photosynthesis and other processes in sunlit surface waters.",
+    "Ocean bacteria in sunlit surface waters produce oxygen through photosynthesis and other processes, playing a vital role in supporting marine life."
+  ],
+  33: [
+    "Great Zimbabwe was built with stone.",
+    "Great Zimbabwe was built with stone walls.",
+    "Great Zimbabwe was built with stone walls without mortar.",
+    "Great Zimbabwe was built with stone walls fitted without mortar.",
+    "Great Zimbabwe was built with stone walls fitted without mortar by shaping blocks.",
+    "Great Zimbabwe was built with stone walls fitted without mortar by shaping granite blocks.",
+    "Great Zimbabwe was built with stone walls fitted without mortar by shaping granite blocks precisely.",
+    "The builders of Great Zimbabwe constructed stone walls without mortar by carefully shaping granite blocks so that they fit together precisely."
+  ],
+  34: [
+    "Ancient Egypt traded with neighbors.",
+    "Ancient Egypt traded with nearby regions.",
+    "Ancient Egypt traded with nearby regions for goods.",
+    "Ancient Egypt traded with nearby regions for goods like cedar.",
+    "Ancient Egypt traded with nearby regions for goods like cedar from Lebanon.",
+    "Ancient Egypt traded with nearby regions for goods like cedar from Lebanon and incense.",
+    "Ancient Egypt traded with nearby regions for goods like cedar from Lebanon and incense from Punt.",
+    "Ancient Egypt traded with nearby regions for goods, including cedar from Lebanon and incense from Punt."
+  ],
+  35: [
+    "Coral bleaching happens when corals lose color.",
+    "Coral bleaching happens when corals lose symbiotic algae.",
+    "Coral bleaching happens when corals lose algae from stress.",
+    "Coral bleaching happens when corals lose algae from heat stress.",
+    "Coral bleaching happens when corals lose algae from heat stress during warm waters.",
+    "Coral bleaching happens when corals lose algae from heat stress during unusually warm waters.",
+    "Coral bleaching happens when corals lose algae from heat stress during unusually warm waters in oceans.",
+    "Coral bleaching occurs when heat stress from unusually warm ocean waters causes corals to expel the symbiotic algae that give them color."
+  ],
+  36: [
+    "Earth’s magnetic field can reverse.",
+    "Earth’s magnetic field can reverse direction.",
+    "Earth’s magnetic field can reverse direction over time.",
+    "Earth’s magnetic field can reverse direction over long time periods.",
+    "Earth’s magnetic field can reverse direction over long time periods, scientists found.",
+    "Earth’s magnetic field can reverse direction over long time periods, scientists found from rock evidence.",
+    "Earth’s magnetic field can reverse direction over long time periods, scientists found from rock evidence on the seafloor.",
+    "Scientists have found evidence from rocks on the seafloor that Earth’s magnetic field can reverse direction over long periods of geological time."
+  ],
+  37: [
+    "Honeybees use dances to communicate.",
+    "Honeybees use dances to share food location.",
+    "Honeybees use dances to share food location to hive mates.",
+    "Honeybees use dances to share food location to hive mates through waggle patterns.",
+    "Honeybees use dances to share food location to hive mates through waggle patterns that show distance.",
+    "Honeybees use dances to share food location to hive mates through waggle patterns that show distance and direction.",
+    "Honeybees use dances to share food location to hive mates through waggle patterns that show distance and direction from the hive.",
+    "Honeybees use waggle dances to share with hive mates both the distance and the direction from the hive to a food source."
+  ],
+  38: [
+    "Deforestation reduces Amazon biodiversity.",
+    "Deforestation reduces biodiversity in the Amazon.",
+    "Deforestation reduces biodiversity in the Amazon rainforest.",
+    "Deforestation reduces biodiversity in the Amazon rainforest and harms species.",
+    "Deforestation reduces biodiversity in the Amazon rainforest and harms many species.",
+    "Deforestation reduces biodiversity in the Amazon rainforest and harms many plant and animal species.",
+    "Deforestation reduces biodiversity in the Amazon rainforest and harms many plant and animal species by destroying habitats.",
+    "Deforestation in the Amazon rainforest destroys habitats, reducing biodiversity and harming many plant and animal species."
+  ],
+  39: [
+    "Antibiotic resistance can spread.",
+    "Antibiotic resistance can spread between bacteria.",
+    "Antibiotic resistance can spread between bacteria through genes.",
+    "Antibiotic resistance can spread between bacteria through gene transfer.",
+    "Antibiotic resistance can spread between bacteria through horizontal gene transfer.",
+    "Antibiotic resistance can spread between bacteria through horizontal gene transfer in various environments.",
+    "Antibiotic resistance can spread between bacteria through horizontal gene transfer in hospitals and other environments.",
+    "Antibiotic resistance can spread between bacteria through horizontal gene transfer, allowing resistant genes to move in hospitals and other environments."
+  ],
+  40: [
+    "Earthquakes are measured on a scale.",
+    "Earthquakes are measured on a magnitude scale.",
+    "Earthquakes are measured on a magnitude scale developed by scientists.",
+    "Earthquakes are measured on a magnitude scale developed by scientists in the 20th century.",
+    "Earthquakes are measured on a magnitude scale developed by scientists in the 20th century to compare size.",
+    "Earthquakes are measured on a magnitude scale developed by scientists in the 20th century to compare size and energy.",
+    "Earthquakes are measured on a magnitude scale developed by scientists in the 20th century to compare size and energy released.",
+    "Scientists developed the earthquake magnitude scale in the 20th century to measure and compare the size of earthquakes based on the energy they release."
+  ],
+  41: [
+    "Roman concrete is durable.",
+    "Roman concrete is more durable than modern concrete.",
+    "Roman concrete is more durable than modern concrete in harsh conditions.",
+    "Roman concrete is more durable than modern concrete in harsh marine conditions.",
+    "Roman concrete is more durable than modern concrete in harsh marine conditions due to its composition.",
+    "Roman concrete is more durable than modern concrete in harsh marine conditions due to volcanic ash in its composition.",
+    "Roman concrete is more durable than modern concrete in harsh marine conditions due to volcanic ash reacting with seawater.",
+    "Roman concrete lasts longer than most modern concrete in marine environments because volcanic ash in its composition reacts with seawater to strengthen the material over time."
+  ],
+  42: [
+    "Photosynthesis releases oxygen.",
+    "Photosynthesis releases oxygen into the air.",
+    "Photosynthesis releases oxygen into the air from plants.",
+    "Photosynthesis releases oxygen into the air from plants and algae.",
+    "Photosynthesis releases oxygen into the air from plants and algae as a by-product.",
+    "Photosynthesis releases oxygen into the air from plants and algae as a by-product of producing food.",
+    "Photosynthesis releases oxygen into the air from plants and algae as a by-product of producing food from sunlight.",
+    "Photosynthesis in plants and algae uses sunlight to make food, releasing oxygen into the air as a by-product."
+  ],
+  43: [
+    "Mars shows signs of past water.",
+    "Mars shows signs of past liquid water.",
+    "Mars shows signs of past liquid water on its surface.",
+    "Mars shows signs of past liquid water on its surface from geology.",
+    "Mars shows signs of past liquid water on its surface from geology and minerals.",
+    "Mars shows signs of past liquid water on its surface from geology and mineral deposits.",
+    "Mars shows signs of past liquid water on its surface from geology and mineral deposits found by rovers.",
+    "Geology and mineral deposits found by rovers show that Mars once had liquid water on its surface."
+  ],
+  44: [
+    "Solar eclipses happen rarely.",
+    "Solar eclipses happen when the Moon blocks the Sun.",
+    "Solar eclipses happen when the Moon blocks the Sun from Earth.",
+    "Solar eclipses happen when the Moon blocks the Sun from Earth’s view.",
+    "Solar eclipses happen when the Moon blocks the Sun from Earth’s view during alignment.",
+    "Solar eclipses happen when the Moon blocks the Sun from Earth’s view during perfect alignment.",
+    "Solar eclipses happen when the Moon blocks the Sun from Earth’s view during perfect alignment with the Sun.",
+    "A solar eclipse occurs when the Moon moves directly between Earth and the Sun, perfectly aligning to block the Sun from view."
+  ],
+  45: [
+    "Black holes have strong gravity.",
+    "Black holes have gravity so strong light cannot escape.",
+    "Black holes have gravity so strong light cannot escape their pull.",
+    "Black holes have gravity so strong light cannot escape their pull beyond the event horizon.",
+    "Black holes have gravity so strong light cannot escape beyond the event horizon, a boundary.",
+    "Black holes have gravity so strong light cannot escape beyond the event horizon, a boundary around them.",
+    "Black holes have gravity so strong light cannot escape beyond the event horizon, the boundary marking no return.",
+    "A black hole has gravity so strong that nothing, not even light, can escape once it crosses the event horizon, the boundary of no return."
+  ],
+  46: [
+    "DNA’s structure was discovered.",
+    "DNA’s structure was discovered in the 20th century.",
+    "DNA’s structure was discovered in the 20th century by scientists.",
+    "DNA’s structure was discovered in the 20th century by scientists using X-ray data.",
+    "DNA’s structure was discovered in the 20th century by scientists using X-ray diffraction data.",
+    "DNA’s structure was discovered in the 20th century by scientists using X-ray diffraction data to find a double helix.",
+    "DNA’s structure was discovered in the 20th century by scientists using X-ray diffraction data to reveal a double helix shape.",
+    "Scientists in the 20th century used X-ray diffraction data to discover that DNA has a double helix structure."
+  ],
+  47: [
+    "The greenhouse effect warms Earth.",
+    "The greenhouse effect warms Earth’s surface.",
+    "The greenhouse effect warms Earth’s surface by trapping heat.",
+    "The greenhouse effect warms Earth’s surface by trapping heat in the atmosphere.",
+    "The greenhouse effect warms Earth’s surface by trapping heat from sunlight in the atmosphere.",
+    "The greenhouse effect warms Earth’s surface by trapping heat from sunlight in gases in the atmosphere.",
+    "The greenhouse effect warms Earth’s surface by trapping heat from sunlight in greenhouse gases in the atmosphere.",
+    "The greenhouse effect occurs when greenhouse gases in the atmosphere trap heat from sunlight, warming Earth’s surface."
+  ],
+  48: [
+    "Some whales migrate far.",
+    "Some whales migrate far for feeding.",
+    "Some whales migrate far for feeding and breeding.",
+    "Some whales migrate far between feeding and breeding grounds.",
+    "Some whales migrate far between feeding and breeding grounds each year.",
+    "Some whales migrate far between feeding and breeding grounds each year, covering long distances.",
+    "Some whales migrate far between feeding and breeding grounds each year, covering thousands of miles.",
+    "Some whale species migrate thousands of miles each year between their feeding and breeding grounds."
+  ],
+  49: [
+    "Earth’s core is made of metal.",
+    "Earth’s core is made of mostly metal.",
+    "Earth’s core is made of mostly iron.",
+    "Earth’s core is made of mostly iron with some nickel.",
+    "Earth’s core is made of mostly iron with some nickel mixed in.",
+    "Earth’s core is made of mostly iron with some nickel mixed in and other elements.",
+    "Earth’s core is made of mostly iron with some nickel mixed in and small amounts of other elements.",
+    "Earth’s core is composed mostly of iron, with some nickel and smaller amounts of other elements."
+  ],
+  50: [
+    "The internet was invented.",
+    "The internet was invented in the 20th century.",
+    "The internet was invented in the 20th century for communication.",
+    "The internet was invented in the 20th century for global communication.",
+    "The internet was invented in the 20th century for global communication between computers.",
+    "The internet was invented in the 20th century for global communication between connected computers.",
+    "The internet was invented in the 20th century for global communication between connected computers using networks.",
+    "The internet, invented in the late 20th century, allows global communication between computers through interconnected networks."
+  ],
+  51: [
+    "Volcanoes erupt from magma.",
+    "Volcanoes erupt from magma underground.",
+    "Volcanoes erupt from magma underground rising up.",
+    "Volcanoes erupt from magma underground rising to the surface.",
+    "Volcanoes erupt from magma underground rising to the surface through vents.",
+    "Volcanoes erupt from magma underground rising to the surface through vents after pressure builds.",
+    "Volcanoes erupt from magma underground rising to the surface through vents after pressure builds inside the Earth.",
+    "Volcanoes erupt when pressure causes magma from beneath the Earth’s surface to rise through vents and spill out."
+  ],
+  52: [
+    "Climate change melts ice.",
+    "Climate change melts polar ice.",
+    "Climate change melts polar ice in the Arctic.",
+    "Climate change melts polar ice in the Arctic and Antarctic.",
+    "Climate change melts polar ice in the Arctic and Antarctic faster.",
+    "Climate change melts polar ice in the Arctic and Antarctic faster than before.",
+    "Climate change melts polar ice in the Arctic and Antarctic faster than before, raising sea levels.",
+    "Climate change is causing polar ice in both the Arctic and Antarctic to melt faster than before, contributing to rising sea levels."
+  ],
+  53: [
+    "The heart pumps blood.",
+    "The human heart pumps blood.",
+    "The human heart pumps blood through vessels.",
+    "The human heart pumps blood through vessels in the body.",
+    "The human heart pumps blood through vessels in the body to deliver oxygen.",
+    "The human heart pumps blood through vessels in the body to deliver oxygen and nutrients.",
+    "The human heart pumps blood through vessels in the body to deliver oxygen and nutrients to cells.",
+    "The human heart pumps blood through vessels to deliver oxygen and nutrients to the body’s cells."
+  ],
+  54: [
+    "Renewable energy comes from nature.",
+    "Renewable energy comes from natural sources.",
+    "Renewable energy comes from natural sources that replenish.",
+    "Renewable energy comes from natural sources that replenish like sunlight.",
+    "Renewable energy comes from natural sources that replenish like sunlight and wind.",
+    "Renewable energy comes from natural sources that replenish like sunlight, wind, and water.",
+    "Renewable energy comes from natural sources that replenish like sunlight, wind, and water flow.",
+    "Renewable energy comes from natural sources that are naturally replenished, such as sunlight, wind, and flowing water."
+  ],
+  55: [
+    "Gravity pulls objects.",
+    "Gravity pulls objects toward Earth.",
+    "Gravity pulls objects toward Earth’s surface.",
+    "Gravity pulls objects toward Earth’s surface at a constant rate.",
+    "Gravity pulls objects toward Earth’s surface at a constant rate unless resisted.",
+    "Gravity pulls objects toward Earth’s surface at a constant rate unless resisted by other forces.",
+    "Gravity pulls objects toward Earth’s surface at a constant rate unless resisted by air or other forces.",
+    "Gravity causes objects to accelerate toward Earth’s surface at a constant rate unless other forces, such as air resistance, act against them."
+  ],
+  56: [
+    "Rain forms from clouds.",
+    "Rain forms from clouds in the sky.",
+    "Rain forms from clouds in the sky as water drops.",
+    "Rain forms from clouds in the sky as water drops grow.",
+    "Rain forms from clouds in the sky as water drops grow heavy.",
+    "Rain forms from clouds in the sky as water drops grow heavy and fall.",
+    "Rain forms from clouds in the sky as water drops grow heavy and fall to Earth.",
+    "Rain forms when water drops in clouds grow heavy enough to fall from the sky to Earth."
+  ],
+  57: [
+    "Fossil fuels form underground.",
+    "Fossil fuels form underground over time.",
+    "Fossil fuels form underground over millions of years.",
+    "Fossil fuels form underground over millions of years from plants.",
+    "Fossil fuels form underground over millions of years from plants and animals.",
+    "Fossil fuels form underground over millions of years from decayed plants and animals.",
+    "Fossil fuels form underground over millions of years from decayed plants and animals under heat and pressure.",
+    "Fossil fuels are formed over millions of years from the remains of plants and animals buried underground and subjected to heat and pressure."
+  ],
+  58: [
+    "Earth’s rotation causes day.",
+    "Earth’s rotation causes day and night.",
+    "Earth’s rotation causes day and night every 24 hours.",
+    "Earth’s rotation causes day and night every 24 hours on the surface.",
+    "Earth’s rotation causes day and night every 24 hours as it spins.",
+    "Earth’s rotation causes day and night every 24 hours as it spins on its axis.",
+    "Earth’s rotation causes day and night every 24 hours as it spins on its axis from west to east.",
+    "Earth’s rotation on its axis from west to east causes the cycle of day and night every 24 hours."
+  ],
+  59: [
+    "Blood type comes from parents.",
+    "Blood type comes from parents’ genes.",
+    "Blood type comes from genes passed by parents.",
+    "Blood type comes from genes passed by both parents.",
+    "Blood type comes from genes passed by both parents to a child.",
+    "Blood type comes from genes passed by both parents to a child in combinations.",
+    "Blood type comes from genes passed by both parents to a child in different combinations that determine type.",
+    "A person’s blood type is determined by the combination of genes passed down from both parents."
+  ],
+  60: [
+    "Sound travels through materials.",
+    "Sound travels through materials called mediums.",
+    "Sound travels through materials called mediums like air.",
+    "Sound travels through materials called mediums like air, water.",
+    "Sound travels through materials called mediums like air, water, and solids.",
+    "Sound travels through materials called mediums like air, water, and solids at different speeds.",
+    "Sound travels through materials called mediums like air, water, and solids at different speeds depending on density.",
+    "Sound travels through mediums such as air, water, and solids at different speeds, depending on the medium’s density."
+  ],
+};
+
+// --------------- Levenshtein similarity ---------------
+function levenshtein(a, b){
+  a = (a||"");
+  b = (b||"");
+  const m = a.length, n = b.length;
+  if(m === 0) return n;
+  if(n === 0) return m;
+  const dp = new Array(n + 1);
+  for(let j=0; j<=n; j++) dp[j] = j;
+  for(let i=1; i<=m; i++){
+    let prev = dp[0];
+    dp[0] = i;
+    for(let j=1; j<=n; j++){
+      const temp = dp[j];
+      if(a[i-1] === b[j-1]){
+        dp[j] = prev;
+      } else {
+        dp[j] = Math.min(prev + 1, dp[j] + 1, dp[j-1] + 1);
+      }
+      prev = temp;
+    }
+  }
+  return dp[n];
+}
+
+function normalizeForCompare(s){
+  return (s||"")
+    .replace(/[^\w\s]/g, "")  // remove punctuation
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function similarityPercent(input, target){
+  const a = normalizeForCompare(input);
+  const b = normalizeForCompare(target);
+  const dist = levenshtein(a, b);
+  const maxLen = Math.max(a.length, b.length) || 1;
+  return Math.max(0, Math.min(100, (1 - dist / maxLen) * 100));
+}
+
+// --------------- App State ---------------
+const selectEl = document.getElementById('sentenceSelect');
+const startBtn = document.getElementById('startBtn');
+const trainerPane = document.getElementById('trainerPane');
+const finishPane = document.getElementById('finishPane');
+const stepIndicator = document.getElementById('stepIndicator');
+const timeDisplay = document.getElementById('timeDisplay');
+const avgDisplay = document.getElementById('avgDisplay');
+const stepNum = document.getElementById('stepNum');
+const targetText = document.getElementById('targetText');
+const readyBtn = document.getElementById('readyBtn');
+const resetBtn = document.getElementById('resetBtn');
+const inputPane = document.getElementById('inputPane');
+const userInput = document.getElementById('userInput');
+const submitBtn = document.getElementById('submitBtn');
+const resultPane = document.getElementById('resultPane');
+const showInput = document.getElementById('showInput');
+const showTarget = document.getElementById('showTarget');
+const simScore = document.getElementById('simScore');
+const gateMsg = document.getElementById('gateMsg');
+const finalTime = document.getElementById('finalTime');
+const finalAvg = document.getElementById('finalAvg');
+const againBtn = document.getElementById('againBtn');
+const proceedBtn = document.getElementById('proceedBtn');
+const retryBtn = document.getElementById('retryBtn');
+
+let currentSentence = 1;
+let currentStep = 0; // 0..7
+let sims = [];
+let startTime = null;
+let timerId = null;
+let lastScore = null;
+
+// Populate dropdown
+function populateSelect(){
+  // Rebuild the dropdown cleanly
+  while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
+  for (let i = 1; i <= 60; i++) {
+    const opt = new Option('Sentence ' + i, String(i));
+    selectEl.add(opt);
+  }
+  selectEl.value = "1";
+}
+
+function formatTime(ms){
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function tick(){
+  const now = Date.now();
+  timeDisplay.textContent = formatTime(now - startTime);
+}
+
+function computeAvg(){
+  if(sims.length === 0) return "—";
+  const avg = sims.reduce((a,b)=>a+b,0) / sims.length;
+  return `${avg.toFixed(1)}%`;
+}
+
+function showStep(){
+  const steps = SENTENCES[currentSentence];
+  targetText.textContent = steps[currentStep];
+  stepIndicator.textContent = `Step ${currentStep + 1}/8`;
+  stepNum.textContent = (currentStep + 1);
+  inputPane.classList.add('hidden');
+  resultPane.classList.add('hidden');
+  proceedBtn.classList.add('hidden');
+  retryBtn.classList.add('hidden');
+  userInput.removeAttribute('disabled');
+  userInput.value = "";
+  targetText.classList.remove('hidden');
+}
+
+function startSession(){
+  if(selectEl.options.length === 0) populateSelect();
+  if(!selectEl.value) selectEl.value = "1";
+  currentSentence = parseInt(selectEl.value || '1', 10);
+  currentStep = 0;
+  sims = [];
+  lastScore = null;
+  trainerPane.classList.remove('hidden');
+  finishPane.classList.add('hidden');
+  avgDisplay.textContent = '—';
+  if(timerId) clearInterval(timerId);
+  startTime = Date.now();
+  timeDisplay.textContent = "00:00";
+  timerId = setInterval(tick, 250);
+  showStep();
+}
+
+// Event bindings
+startBtn.addEventListener('click', startSession);
+selectEl.addEventListener('change', ()=>{
+  currentSentence = parseInt(selectEl.value || '1', 10);
+});
+
+readyBtn.addEventListener('click', ()=>{
+  targetText.classList.add('hidden');
+  inputPane.classList.remove('hidden');
+  userInput.focus();
+});
+
+resetBtn.addEventListener('click', startSession);
+
+submitBtn.addEventListener('click', ()=>{
+  const target = SENTENCES[currentSentence][currentStep];
+  const input = userInput.value || "";
+  const sim = similarityPercent(input, target);
+  lastScore = sim; // store for Proceed
+  showInput.textContent = input;
+  showTarget.textContent = target;
+  simScore.textContent = `${sim.toFixed(1)}%`;
+  simScore.className = (sim >= 90) ? 'ok' : (sim >= 80 ? 'warn' : 'bad');
+
+  // Lock the attempt and show comparison
+  userInput.setAttribute('disabled', true);
+  // Keep inputPane visible so comparison shows (resultPane lives inside it)
+  resultPane.classList.remove('hidden');
+
+  if(sim >= 80){
+    gateMsg.textContent = "✅ ≥80%. Click 'Proceed to Next Step' to continue.";
+    gateMsg.className = "ok";
+    proceedBtn.classList.remove('hidden');
+    retryBtn.classList.add('hidden');
+  } else {
+    gateMsg.textContent = "❌ Similarity below 80%. Click 'Retry' and retype your attempt.";
+    gateMsg.className = "bad";
+    proceedBtn.classList.add('hidden');
+    retryBtn.classList.remove('hidden');
+  }
+});
+
+proceedBtn.addEventListener('click', ()=>{
+  if(lastScore === null || lastScore < 80) return;
+  sims.push(lastScore);
+  avgDisplay.textContent = computeAvg();
+  if(currentStep < 7){
+    currentStep += 1;
+    showStep();
+  } else {
+    clearInterval(timerId);
+    finalTime.textContent = timeDisplay.textContent;
+    finalAvg.textContent = computeAvg();
+    trainerPane.classList.add('hidden');
+    finishPane.classList.remove('hidden');
+  }
+  resultPane.classList.add('hidden');
+  proceedBtn.classList.add('hidden');
+  lastScore = null;
+});
+
+retryBtn.addEventListener('click', ()=>{
+  userInput.removeAttribute('disabled');
+  userInput.value = "";
+  resultPane.classList.add('hidden');
+  proceedBtn.classList.add('hidden');
+  inputPane.classList.remove('hidden');
+  userInput.focus();
+});
+
+// --- Anti-copy guard on the target text ---
+let copyAttemptCount = 0;
+function showCopyWarning(){
+  copyAttemptCount += 1;
+  if(copyAttemptCount === 1){
+    alert("⚠️ No copying! You need to type it by yourself. Next time we will call 911.");
+  } else {
+    alert("🚨 We warned you. Next time we will call 911. Now… type it yourself.");
+  }
+}
+
+function blockCopyHandlers(el){
+  if(!el) return;
+  el.addEventListener('contextmenu', (e)=>{ e.preventDefault(); showCopyWarning(); });
+  el.addEventListener('copy', (e)=>{ e.preventDefault(); showCopyWarning(); });
+  el.addEventListener('dragstart', (e)=>{ e.preventDefault(); showCopyWarning(); });
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  populateSelect();
+  blockCopyHandlers(document.getElementById('targetText'));
+});
+</script>
+</body>
+</html>
